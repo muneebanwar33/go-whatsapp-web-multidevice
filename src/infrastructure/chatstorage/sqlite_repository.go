@@ -167,11 +167,9 @@ func (r *SQLiteRepository) StoreMessage(message *domainChatStorage.Message) erro
 	message.CreatedAt = now
 	message.UpdatedAt = now
 
-	// Skip empty messages
-	if message.Content == "" && message.MediaType == "" {
-		// This is not an error, just skip storing empty messages
-		return nil
-	}
+	// Note: We now store all messages, even those with no content or media
+	// This ensures accurate message counts and preserves all message history
+	// Messages with no content/media could be reactions, system messages, etc.
 
 	query := `
 		INSERT INTO messages (
@@ -244,10 +242,8 @@ func (r *SQLiteRepository) StoreMessagesBatch(messages []*domainChatStorage.Mess
 
 	now := time.Now()
 	for _, message := range messages {
-		// Skip empty messages
-		if message.Content == "" && message.MediaType == "" {
-			continue
-		}
+		// Note: We now store all messages, even those with no content or media
+		// This ensures accurate message counts and preserves all message history
 
 		message.CreatedAt = now
 		message.UpdatedAt = now
@@ -552,10 +548,10 @@ func (r *SQLiteRepository) CreateMessage(ctx context.Context, evt *events.Messag
 	content := utils.ExtractMessageTextFromProto(evt.Message)
 	mediaType, filename, url, mediaKey, fileSHA256, fileEncSHA256, fileLength := utils.ExtractMediaInfo(evt.Message)
 
-	// Skip if there's no content and no media
+	// Log messages with no content or media for debugging, but still store them
+	// These could be reactions, system messages, polls, or other special message types
 	if content == "" && mediaType == "" {
-		logrus.Debugf("Skipping message %s - no content or media", evt.Info.ID)
-		return nil
+		logrus.Debugf("Storing message %s with no content or media (could be reaction, system message, etc.)", evt.Info.ID)
 	}
 
 	// Create message object

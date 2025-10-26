@@ -862,9 +862,11 @@ func processConversationMessages(_ context.Context, data *waHistorySync.HistoryS
 			content := utils.ExtractMessageTextFromProto(msg.GetMessage())
 			mediaType, filename, url, mediaKey, fileSHA256, fileEncSHA256, fileLength := utils.ExtractMediaInfo(msg.GetMessage())
 
-			// Skip if there's no content and no media
+			// Note: We now store all messages, even those with no content or media
+			// This ensures accurate message counts and preserves all message history
+			// Messages with no content/media could be reactions, system messages, etc.
 			if content == "" && mediaType == "" {
-				continue
+				log.Debugf("Processing message %s with no content or media (could be reaction, system message, etc.)", messageID)
 			}
 
 			// Determine sender
