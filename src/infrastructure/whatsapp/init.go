@@ -644,6 +644,12 @@ func handleAutoReply(ctx context.Context, evt *events.Message, chatStorageRepo d
 				hasText = true
 			} else if conv := edited.GetConversation(); conv != "" {
 				hasText = true
+			} else if img := edited.GetImageMessage(); img != nil && img.GetCaption() != "" {
+				hasText = true
+			} else if vid := edited.GetVideoMessage(); vid != nil && vid.GetCaption() != "" {
+				hasText = true
+			} else if doc := edited.GetDocumentMessage(); doc != nil && doc.GetCaption() != "" {
+				hasText = true
 			}
 		}
 	}

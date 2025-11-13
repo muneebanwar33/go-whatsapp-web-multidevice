@@ -133,10 +133,20 @@ func createMessagePayload(ctx context.Context, evt *events.Message) (map[string]
 			}
 			// Extract new edited content
 			if editedMessage := protocolMessage.GetEditedMessage(); editedMessage != nil {
+				// Check for edited text messages
 				if editedText := editedMessage.GetExtendedTextMessage(); editedText != nil {
 					body["edited_text"] = editedText.GetText()
 				} else if editedConv := editedMessage.GetConversation(); editedConv != "" {
 					body["edited_text"] = editedConv
+				} else if editedImg := editedMessage.GetImageMessage(); editedImg != nil {
+					// Check for edited image caption (allow empty - caption removal is valid)
+					body["edited_text"] = editedImg.GetCaption()
+				} else if editedVid := editedMessage.GetVideoMessage(); editedVid != nil {
+					// Check for edited video caption (allow empty - caption removal is valid)
+					body["edited_text"] = editedVid.GetCaption()
+				} else if editedDoc := editedMessage.GetDocumentMessage(); editedDoc != nil {
+					// Check for edited document caption (allow empty - caption removal is valid)
+					body["edited_text"] = editedDoc.GetCaption()
 				}
 			}
 		}

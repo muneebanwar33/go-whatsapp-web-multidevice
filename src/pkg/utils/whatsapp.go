@@ -104,6 +104,32 @@ func ExtractMessageTextFromProto(msg *waE2E.Message) string {
 		return extendedText.GetText()
 	}
 
+	// Check for edited messages (MESSAGE_EDIT protocol)
+	if protocolMessage := msg.GetProtocolMessage(); protocolMessage != nil {
+		if editedMessage := protocolMessage.GetEditedMessage(); editedMessage != nil {
+			// Check for edited text
+			if editedConv := editedMessage.GetConversation(); editedConv != "" {
+				return editedConv
+			}
+			// Check for edited extended text
+			if editedExtText := editedMessage.GetExtendedTextMessage(); editedExtText != nil {
+				return editedExtText.GetText()
+			}
+			// Check for edited image caption (allow empty - caption removal is valid)
+			if editedImg := editedMessage.GetImageMessage(); editedImg != nil {
+				return editedImg.GetCaption()
+			}
+			// Check for edited video caption (allow empty - caption removal is valid)
+			if editedVid := editedMessage.GetVideoMessage(); editedVid != nil {
+				return editedVid.GetCaption()
+			}
+			// Check for edited document caption (allow empty - caption removal is valid)
+			if editedDoc := editedMessage.GetDocumentMessage(); editedDoc != nil {
+				return editedDoc.GetCaption()
+			}
+		}
+	}
+
 	// Check for image with caption
 	if img := msg.GetImageMessage(); img != nil && img.GetCaption() != "" {
 		return img.GetCaption()
@@ -144,8 +170,35 @@ func ExtractMessageTextFromEvent(evt *events.Message) string {
 		messageText = extendedText.GetText()
 	} else if protocolMessage := evt.Message.GetProtocolMessage(); protocolMessage != nil {
 		if editedMessage := protocolMessage.GetEditedMessage(); editedMessage != nil {
-			if extendedText := editedMessage.GetExtendedTextMessage(); extendedText != nil {
+			// Check for edited text
+			if editedConv := editedMessage.GetConversation(); editedConv != "" {
+				messageText = editedConv
+			} else if extendedText := editedMessage.GetExtendedTextMessage(); extendedText != nil {
 				messageText = extendedText.GetText()
+			} else if editedImg := editedMessage.GetImageMessage(); editedImg != nil {
+				// Check for edited image caption
+				messageText = editedImg.GetCaption()
+				if messageText == "" {
+					messageText = "🖼️ Image"
+				} else {
+					messageText = "🖼️ " + messageText
+				}
+			} else if editedVid := editedMessage.GetVideoMessage(); editedVid != nil {
+				// Check for edited video caption
+				messageText = editedVid.GetCaption()
+				if messageText == "" {
+					messageText = "🎥 Video"
+				} else {
+					messageText = "🎥 " + messageText
+				}
+			} else if editedDoc := editedMessage.GetDocumentMessage(); editedDoc != nil {
+				// Check for edited document caption
+				messageText = editedDoc.GetCaption()
+				if messageText == "" {
+					messageText = "📄 Document"
+				} else {
+					messageText = "📄 " + messageText
+				}
 			}
 		}
 	} else if imageMessage := evt.Message.GetImageMessage(); imageMessage != nil {
@@ -676,10 +729,22 @@ func BuildEventMessage(evt *events.Message) (message EvtMessage) {
 		message.QuotedMessage = extendedMessage.ContextInfo.GetQuotedMessage().GetConversation()
 	} else if protocolMessage := evt.Message.GetProtocolMessage(); protocolMessage != nil {
 		if editedMessage := protocolMessage.GetEditedMessage(); editedMessage != nil {
-			if extendedText := editedMessage.GetExtendedTextMessage(); extendedText != nil {
+			// Check for edited text
+			if editedConv := editedMessage.GetConversation(); editedConv != "" {
+				message.Text = editedConv
+			} else if extendedText := editedMessage.GetExtendedTextMessage(); extendedText != nil {
 				message.Text = extendedText.GetText()
 				message.RepliedId = extendedText.ContextInfo.GetStanzaID()
 				message.QuotedMessage = extendedText.ContextInfo.GetQuotedMessage().GetConversation()
+			} else if editedImg := editedMessage.GetImageMessage(); editedImg != nil {
+				// Check for edited image caption
+				message.Text = editedImg.GetCaption()
+			} else if editedVid := editedMessage.GetVideoMessage(); editedVid != nil {
+				// Check for edited video caption
+				message.Text = editedVid.GetCaption()
+			} else if editedDoc := editedMessage.GetDocumentMessage(); editedDoc != nil {
+				// Check for edited document caption
+				message.Text = editedDoc.GetCaption()
 			}
 		}
 	}
@@ -704,6 +769,12 @@ func BuildForwarded(evt *events.Message) bool {
 		if editedMessage := protocolMessage.GetEditedMessage(); editedMessage != nil {
 			if extendedText := editedMessage.GetExtendedTextMessage(); extendedText != nil {
 				return extendedText.ContextInfo.GetIsForwarded()
+			} else if img := editedMessage.GetImageMessage(); img != nil && img.ContextInfo != nil {
+				return img.ContextInfo.GetIsForwarded()
+			} else if vid := editedMessage.GetVideoMessage(); vid != nil && vid.ContextInfo != nil {
+				return vid.ContextInfo.GetIsForwarded()
+			} else if doc := editedMessage.GetDocumentMessage(); doc != nil && doc.ContextInfo != nil {
+				return doc.ContextInfo.GetIsForwarded()
 			}
 		}
 	}
